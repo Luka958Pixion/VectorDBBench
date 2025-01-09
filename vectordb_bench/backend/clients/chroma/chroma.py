@@ -5,6 +5,8 @@ from typing import Any
 from ..api import VectorDB, DBCaseConfig
 
 log = logging.getLogger(__name__)
+COLLECTION_NAME = "collection_1"
+
 class ChromaClient(VectorDB):
     """Chroma client for VectorDB. 
     To set up Chroma in docker, see https://docs.trychroma.com/usage-guide
@@ -25,10 +27,12 @@ class ChromaClient(VectorDB):
 
         self.db_config = db_config
         self.case_config = db_case_config
-        self.collection_name = 'example2'
+        self.collection_name = COLLECTION_NAME
 
-        client = chromadb.HttpClient(host=self.db_config["host"], 
-                                     port=self.db_config["port"])
+        client = chromadb.HttpClient(
+            host=self.db_config["host"], 
+            port=self.db_config["port"]
+        )
         assert client.heartbeat() is not None
         if drop_old:
             try:
@@ -46,10 +50,17 @@ class ChromaClient(VectorDB):
             >>>     self.insert_embeddings()
         """
         #create connection
-        self.client = chromadb.HttpClient(host=self.db_config["host"], 
-                                          port=self.db_config["port"])
+        self.client = chromadb.HttpClient(
+            host=self.db_config["host"], 
+            port=self.db_config["port"]
+        )
         
-        self.collection = self.client.get_or_create_collection('example2')
+        self.collection = self.client.get_or_create_collection(COLLECTION_NAME, metadata={
+            "hnsw:space": "cosine",
+            "hnsw:construction_ef": self.case_config.index_param()["construction_ef"],
+            "hnsw:M": self.case_config.index_param()["M"],
+            "hnsw:search_ef": self.case_config.search_param()["search_ef"],
+        })
         yield
         self.client = None
         self.collection = None
@@ -68,7 +79,7 @@ class ChromaClient(VectorDB):
         embeddings: list[list[float]],
         metadata: list[int],
         **kwargs: Any,
-    ) -> (int, Exception):
+    ) -> tuple[int, Exception]:
         """Insert embeddings into the database.
 
         Args:
