@@ -57,9 +57,9 @@ class ChromaClient(VectorDB):
         
         self.collection = self.client.get_or_create_collection(COLLECTION_NAME, metadata={
             "hnsw:space": "cosine",
-            "hnsw:construction_ef": self.case_config.index_param()["construction_ef"],
-            "hnsw:M": self.case_config.index_param()["M"],
-            "hnsw:search_ef": self.case_config.search_param()["search_ef"],
+            "hnsw:construction_ef": self.case_config.index_param()["params"]["construction_ef"],
+            "hnsw:M": self.case_config.index_param()["params"]["M"],
+            "hnsw:search_ef": self.case_config.search_param()["params"]["search_ef"],
         })
         yield
         self.client = None

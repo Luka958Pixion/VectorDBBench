@@ -44,7 +44,7 @@ def Chroma(**parameters: Unpack[ChromaHNSWTypedDict]):
         db_case_config=ChromaHNSWConfig(
             M=parameters["m"],
             efConstruction=parameters["ef_construction"],
-            ef=parameters["ef_runtime"],
+            ef=parameters["ef_search"],
         ),
         **parameters,
     )
