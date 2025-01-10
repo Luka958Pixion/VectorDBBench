@@ -288,8 +288,8 @@ class Performance1536D50K(PerformanceCase):
     name: str = "Search Performance Test (50K Dataset, 1536 Dim)"
     description: str = """This case tests the search performance of a vector database with a medium 50K dataset (<b>OpenAI 50K vectors</b>, 1536 dimensions), at varying parallel levels.
 Results will show index building time, recall, and maximum QPS."""
-    load_timeout: float | int = 3600
-    optimize_timeout: float | int | None = config.OPTIMIZE_TIMEOUT_DEFAULT
+    load_timeout: float | int = config.LOAD_TIMEOUT_1536D_50K
+    optimize_timeout: float | int | None = config.OPTIMIZE_TIMEOUT_1536D_50K
 
 
 def metric_type_map(s: str) -> MetricType:

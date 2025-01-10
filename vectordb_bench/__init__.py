@@ -43,6 +43,7 @@ class config:
     LOAD_TIMEOUT_768D_10M       = 240 * 3600  # 10d
     LOAD_TIMEOUT_768D_100M      = 2400 * 3600 # 100d
 
+    LOAD_TIMEOUT_1536D_50K     = 3 * 3600   # 3h
     LOAD_TIMEOUT_1536D_500K     = 24 * 3600   # 24h
     LOAD_TIMEOUT_1536D_5M       = 240 * 3600  # 10d
 
@@ -52,6 +53,7 @@ class config:
     OPTIMIZE_TIMEOUT_768D_100M  = 2400 * 3600 # 100d
 
 
+    OPTIMIZE_TIMEOUT_1536D_50K = 3 * 3600   # 24h
     OPTIMIZE_TIMEOUT_1536D_500K = 24 * 3600   # 24h
     OPTIMIZE_TIMEOUT_1536D_5M   = 240 * 3600  # 10d
     
