@@ -36,7 +36,7 @@ class ChromaClient(VectorDB):
         )
         assert client.heartbeat() is not None
         
-        if drop_old:
+        if drop_old and COLLECTION_NAME in client.list_collections():
             client.delete_collection(COLLECTION_NAME)
 
     @contextmanager
