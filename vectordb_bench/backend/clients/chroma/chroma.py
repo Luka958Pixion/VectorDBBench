@@ -24,6 +24,7 @@ class ChromaClient(VectorDB):
 
             **kwargs
         ):
+        log.warning('inside __init__')
 
         self.db_config = db_config
         self.case_config = db_case_config
@@ -34,12 +35,9 @@ class ChromaClient(VectorDB):
             port=self.db_config["port"]
         )
         assert client.heartbeat() is not None
+        
         if drop_old:
-            try:
-                client.reset() # Reset the database
-            except:
-                drop_old = False
-                log.info(f"Chroma client drop_old collection: {self.collection_name}")
+            client.delete_collection(COLLECTION_NAME)
 
     @contextmanager
     def init(self) -> None:
@@ -61,7 +59,9 @@ class ChromaClient(VectorDB):
             "hnsw:M": self.case_config.index_param()["params"]["M"],
             "hnsw:search_ef": self.case_config.search_param()["params"]["search_ef"],
         })
+        log.warning('inside init contextmanager, opening connection')
         yield
+        log.warning('inside init contextmanager, closing connection')
         self.client = None
         self.collection = None
 
