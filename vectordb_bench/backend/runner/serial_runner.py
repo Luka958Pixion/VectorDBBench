@@ -99,7 +99,7 @@ class SerialInsertRunner:
         return count
 
     @utils.time_it
-    def _insert_all_batches(self) -> int:
+    def _insert_all_batches(self, retries=2) -> int:
         """Performance case only"""
         with concurrent.futures.ProcessPoolExecutor(mp_context=mp.get_context('spawn'), max_workers=1) as executor:
             future = executor.submit(self.task)
@@ -111,6 +111,7 @@ class SerialInsertRunner:
                 for pid, _ in executor._processes.items():
                     psutil.Process(pid).kill()
                 raise PerformanceTimeoutError(msg) from e
+                
             except Exception as e:
                 log.warning(f"VectorDB load dataset error: {e}")
                 raise e from e

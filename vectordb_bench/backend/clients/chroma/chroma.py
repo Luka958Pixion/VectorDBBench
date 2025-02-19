@@ -2,6 +2,10 @@ import chromadb
 import logging 
 from contextlib import contextmanager
 from typing import Any
+import tenacity
+from httpx import RemoteProtocolError
+
+import chromadb.config
 from ..api import VectorDB, DBCaseConfig
 
 log = logging.getLogger(__name__)
@@ -38,6 +42,15 @@ class ChromaClient(VectorDB):
         
         if drop_old and COLLECTION_NAME in client.list_collections():
             client.delete_collection(COLLECTION_NAME)
+            
+        client.get_or_create_collection(COLLECTION_NAME, metadata={
+            "hnsw:space": "cosine",
+            "hnsw:construction_ef": self.case_config.index_param()["params"]["construction_ef"],
+            "hnsw:M": self.case_config.index_param()["params"]["M"],
+            "hnsw:search_ef": self.case_config.search_param()["params"]["search_ef"]
+        })
+        client._system.stop()
+        client = None
 
     @contextmanager
     def init(self) -> None:
@@ -52,16 +65,9 @@ class ChromaClient(VectorDB):
             host=self.db_config["host"], 
             port=self.db_config["port"]
         )
-        
-        self.collection = self.client.get_or_create_collection(COLLECTION_NAME, metadata={
-            "hnsw:space": "cosine",
-            "hnsw:construction_ef": self.case_config.index_param()["params"]["construction_ef"],
-            "hnsw:M": self.case_config.index_param()["params"]["M"],
-            "hnsw:search_ef": self.case_config.search_param()["params"]["search_ef"],
-        })
-        log.warning('inside init contextmanager, opening connection')
+        self.collection = self.client.get_collection(COLLECTION_NAME)
         yield
-        log.warning('inside init contextmanager, closing connection')
+        self.client._system.stop()
         self.client = None
         self.collection = None
 
@@ -73,6 +79,32 @@ class ChromaClient(VectorDB):
 
     def optimize(self) -> None:
         pass
+    
+    def reset_collection(self):
+        self.client = chromadb.HttpClient(
+            host=self.db_config["host"], 
+            port=self.db_config["port"]
+        )
+        self.client.delete_collection(COLLECTION_NAME)
+        
+        self.collection = self.client.create_collection(COLLECTION_NAME, metadata={
+            "hnsw:space": "cosine",
+            "hnsw:construction_ef": self.case_config.index_param()["params"]["construction_ef"],
+            "hnsw:M": self.case_config.index_param()["params"]["M"],
+            "hnsw:search_ef": self.case_config.search_param()["params"]["search_ef"]
+        })
+    
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3), 
+        wait=tenacity.wait_fixed(10),
+        retry=tenacity.retry_if_exception_type(RemoteProtocolError)
+    )
+    def _add_batch(self, batch_embeddings: list[list[float]], ids: list[str], batch_metadata: list[dict]):
+        """
+        Add a batch of embeddings to the database. This method is retried on RemoteProtocolError.
+        """
+        if len(batch_embeddings) > 0:
+            self.collection.add(embeddings=batch_embeddings, ids=ids, metadatas=batch_metadata)
 
     def insert_embeddings(
         self,
@@ -90,11 +122,30 @@ class ChromaClient(VectorDB):
         Returns:
             (int, Exception): number of embeddings inserted and exception if any
         """
-        ids=[str(i) for i in metadata]
+        
+        """ ids=[str(i) for i in metadata]
         metadata = [{"id": int(i)} for i in metadata] 
         if len(embeddings) > 0:
             self.collection.add(embeddings=embeddings, ids=ids, metadatas=metadata)
-        return len(embeddings), None
+        return len(embeddings), None """
+        
+        batch_size = 1000
+        count = 0
+
+        try:
+            for i in range(0, len(embeddings), batch_size):
+                batch_embeddings = embeddings[i:i + batch_size]
+                batch_metadata = metadata[i:i + batch_size]
+                ids = [str(meta) for meta in batch_metadata]
+                batch_metadata_dict = [{"id": int(meta)} for meta in batch_metadata]
+
+                self._add_batch(batch_embeddings, ids, batch_metadata_dict)
+                count += len(batch_embeddings)
+                
+        except Exception as e:
+            return count, e
+
+        return count, None
     
     def search_embedding(
         self,
